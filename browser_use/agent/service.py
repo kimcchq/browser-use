@@ -173,6 +173,7 @@ class Agent:
 
 		try:
 			state = await self.browser_context.get_state(use_vision=self.use_vision)
+			self.screenshot = state.screenshot
 			self.message_manager.add_state_message(state, self._last_result, step_info)
 			input_messages = self.message_manager.get_messages()
 			try:
@@ -288,7 +289,7 @@ class Agent:
 
 		parsed: AgentOutput = response['parsed']
 		if parsed is None:
-			raise ValueError(f'Could not parse response.')
+			raise ValueError('Could not parse response.')
 
 		# cut the number of actions to max_actions_per_step
 		parsed.action = parsed.action[: self.max_actions_per_step]
@@ -322,6 +323,17 @@ class Agent:
 		# create folders if not exists
 		os.makedirs(os.path.dirname(self.save_conversation_path), exist_ok=True)
 
+		# Save screenshot if available
+		if hasattr(self, 'screenshot') and self.screenshot:
+			screenshot_bytes = (
+				base64.b64decode(self.screenshot)
+				if isinstance(self.screenshot, str)
+				else self.screenshot
+			)
+			with open(self.save_conversation_path + f'_{self.n_steps}.png', 'wb') as f:
+				f.write(screenshot_bytes)
+
+		# Save conversation text
 		with open(self.save_conversation_path + f'_{self.n_steps}.txt', 'w') as f:
 			self._write_messages_to_file(f, input_messages)
 			self._write_response_to_file(f, response)
